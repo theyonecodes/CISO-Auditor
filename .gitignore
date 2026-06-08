@@ -1,0 +1,18 @@
+# Byte-compiled
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated reports
+CISO_Audit_Report*.html
+CISO_Audit_Report*.json
+CISO_Audit_Report*.csv
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
