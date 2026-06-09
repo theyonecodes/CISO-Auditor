@@ -6,6 +6,9 @@ from datetime import datetime
 
 REPORT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def _format_timestamp():
+    return datetime.now().strftime("%B %d, %Y at %I:%M:%S %p")
+
 def _count_by_category(checks):
     cats = {}
     for c in checks:
@@ -124,7 +127,7 @@ tr:hover {{ background:#161B22; }}
 </head>
 <body>
 <h1>CISO Advanced Security Auditor — Report</h1>
-<p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+<p>Generated: {_format_timestamp()}</p>
 <div class="score" style="color:#58A6FF">{score}% SECURE</div>
 <div class="summary">
 <div class="card" onclick="filterBy('pass')"><div class="num" style="color:#3FB950">{passed}</div>PASS</div>
@@ -212,10 +215,36 @@ def generate_json(checks):
     }
     return json.dumps(data, indent=2)
 
+def generate_ps1(checks):
+    lines = [
+        "# CISO Advanced Security Auditor — Remediation Script",
+        f"# Generated: {_format_timestamp()}",
+        "# Run as Administrator",
+        "",
+        "Write-Host 'CISO Security Remediation Script' -ForegroundColor Cyan",
+        "Write-Host '==================================' -ForegroundColor Cyan",
+        "",
+    ]
+    fixable = [c for c in checks if c.status in ("FAIL", "WARNING") and c.auto_fixable]
+    if not fixable:
+        lines.append("# No auto-fixable items found.")
+    else:
+        lines.append(f"# {len(fixable)} auto-fixable items detected")
+        lines.append("")
+        for c in fixable:
+            lines.append(f"# --- Check #{c.id:03d}: {c.name} ---")
+            lines.append(f"# Status: {c.status}")
+            lines.append(f"# Details: {c.details}")
+            lines.append(f"# Remediation: {c.remediation}")
+            lines.append("")
+    lines.append("Write-Host 'Review each step before executing.' -ForegroundColor Yellow")
+    return "\n".join(lines)
+
 FORMATS = {
     "html": {"ext": ".html", "gen": generate_html, "desc": "HTML Report"},
     "json": {"ext": ".json", "gen": generate_json, "desc": "JSON Data"},
     "csv":  {"ext": ".csv",  "gen": generate_csv,  "desc": "CSV Spreadsheet"},
+    "ps1":  {"ext": ".ps1",  "gen": generate_ps1,  "desc": "PowerShell Remediation Script"},
 }
 
 def save_report(checks, fmt="html", filepath=None):
