@@ -40,9 +40,9 @@ class CISOAuditorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("CISO Advanced Security Auditor")
-        self.root.geometry("1280x820")
         self.root.minsize(1024, 700)
         self.root.configure(bg=BG)
+        self.root.state("zoomed")
 
         self.auditor = AuditorCore()
         self.scan_complete = False
@@ -59,8 +59,6 @@ class CISOAuditorApp:
             with open(SETTINGS_FILE, "r") as f:
                 s = json.load(f)
             self.export_format.set(s.get("format", "html"))
-            if "geometry" in s:
-                self.root.geometry(s["geometry"])
         except:
             pass
 
@@ -68,7 +66,6 @@ class CISOAuditorApp:
         try:
             s = {
                 "format": self.export_format.get(),
-                "geometry": self.root.geometry(),
             }
             with open(SETTINGS_FILE, "w") as f:
                 json.dump(s, f, indent=2)
