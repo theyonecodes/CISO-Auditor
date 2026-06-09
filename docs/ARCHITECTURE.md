@@ -1,4 +1,4 @@
-# Architecture — CISO Advanced Security Auditor
+# Architecture — CISO Security Auditor
 
 ## High-Level Overview
 
@@ -62,7 +62,7 @@
 ## Data Flow: Scan
 
 ```
-User clicks RUN DEEP SCAN
+User clicks RUN SCAN
         │
         ▼
 main.py: run_scan_thread()
@@ -89,7 +89,7 @@ main.py: _update_progress() → treeview + progress bar + status
 ## Data Flow: Fix
 
 ```
-User clicks APPLY AUTO-FIX or FIX ALL
+User clicks FIX THIS or FIX ALL
         │
         ▼
 main.py: confirmation dialog + admin check
@@ -118,19 +118,17 @@ main.py: treeview + summary + undo button enabled
 
 ```
 CISO_Auditor/
-├── main.py                  # GUI entry point (520 lines)
-├── auditor_core.py          # Engine: checks, fixes, backup (1560 lines)
-├── export_report.py         # HTML/JSON/CSV export (230 lines)
+├── main.py                  # GUI entry point
+├── auditor_core.py          # Engine: checks, fixes, backup
+├── export_report.py         # HTML/JSON/CSV/PDF/PS1 export
 ├── docs/
 │   ├── PDR.md
 │   ├── ARCHITECTURE.md
 │   ├── TECH_STACK.md
 │   ├── DESIGN.md
-│   ├── PRODUCT_BACKLOG.md
-│   ├── SPRINT_BACKLOG.md
 │   ├── ROADMAP.md
 │   ├── PROJECT_PLAN.md
 │   ├── SECURITY.md
 │   └── README.md
-└── *.csv / *.html / *.json  # generated reports
+└── *.csv / *.html / *.json / *.pdf / *.ps1  # generated reports
 ```

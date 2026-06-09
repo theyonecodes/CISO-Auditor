@@ -1,4 +1,4 @@
-# UI/UX Design — CISO Advanced Security Auditor
+# UI/UX Design — CISO Security Auditor
 
 ## Color Palette (GitHub Dark)
 
@@ -29,7 +29,7 @@ ROW_ALT   #11181C   Alternating row stripe
 │ │ CISO WINDOWS SECURITY AUDITOR                   SCORE: 45% │ │
 │ └──────────────────────────────────────────────────────────────┘ │
 │ ┌─ TOOLBAR ─────────────────────────────────────────────────────┐ │
-│ │ [RUN DEEP SCAN]   [EXPORT REPORT] | Format: ○HTML ○JSON ○CSV │ │
+│ │ [RUN SCAN]   [EXPORT REPORT] | Format: ○HTML ○JSON ○CSV ○PDF ○PS1│ │
 │ │   [FIX ALL] [UNDO]   ████████░░ 80%   Scanning [42/100]...  │ │
 │ └──────────────────────────────────────────────────────────────┘ │
 │ ┌─ SUMMARY ─────────────────────────────────────────────────────┐ │
@@ -46,7 +46,7 @@ ROW_ALT   #11181C   Alternating row stripe
 │ │ │ #042 UAC Prompts                          [ FAIL ]      │ ││
 │ │ │ Details: UAC is DISABLED.                               │ ││
 │ │ │ Remediation: ⚡ Enable UAC via registry...               │ ││
-│ │ │ [APPLY AUTO-FIX]                                        │ ││
+│ │ │ [FIX THIS?]                                        │ ││
 │ │ └──────────────────────────────────────────────────────────┘ ││
 │ └───────────────────────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────────────────────┘
@@ -78,7 +78,7 @@ Columns within treeview: ID(50px, fixed) | Domain(2x) | Check(4x) | Status(80px,
 ## Interaction Design
 
 ### Scan Flow
-1. User clicks **RUN DEEP SCAN**
+1. User clicks **RUN SCAN**
 2. Button changes to `SCANNING...` (disabled, gray)
 3. Treeview rows update live — each check shows status as it completes
 4. Progress bar fills from 0→100%
@@ -88,7 +88,7 @@ Columns within treeview: ID(50px, fixed) | Domain(2x) | Check(4x) | Status(80px,
 
 ### Fix Flow
 1. User selects a FAIL/WARNING row
-2. Detail pane shows remediation + **APPLY AUTO-FIX** button (if fixable)
+2. Detail pane shows remediation + **FIX THIS?** button (if fixable)
 3. User clicks → confirmation dialog → creating restore point → reg write → result
 4. Or user clicks **FIX ALL** → confirmation with full change list → batch process
 5. **UNDO** button enables after first fix

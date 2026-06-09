@@ -1,116 +1,116 @@
-# CISO Advanced Security Auditor
+# CISO Security Auditor
 
-> 100-point automated Windows security audit — offline, zero dependencies, one-click fixes.
+Checks if your Windows machine is secure. Tells you what's broken. Fixes some of it.
 
-![Python](https://img.shields.io/badge/python-3.8%2B-blue)
-![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey)
-![Status](https://img.shields.io/badge/status-v1.0--beta-green)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Dependencies](https://img.shields.io/badge/dependencies-zero-success)
+## Who is this for?
 
----
+- **Freelance IT consultants** — you set up machines for clients, you need to show "it's secure"
+- **Small business owners** — you have 5-50 machines, no IT dept, you need to prove security to your insurer or auditor
+- **Homelab hobbyists** — you run Windows VMs, you want to harden them and see your score improve
+- **IT helpdesk** — you get a machine, you need a quick green/red light before deploying it
 
-## Quick Start
+If you have a big security team with Nessus and CrowdStrike, this isn't for you. This is for people who need a quick answer without spending $10K/year on enterprise tools.
 
-```batch
+## What it does
+
+Runs 100 security checks and gives you a score out of 100%. That's it.
+
+```
 python main.py
 ```
 
-No pip install. No setup. Works on any Windows machine with Python 3.8+.
+No install. No config. Just run it.
 
-## What It Does
+## What you get
 
-Scans a Windows 10/11 endpoint against **100 CISO-level security checks**
-across 8 domains, shows step-by-step remediation for every finding, and
-applies **one-click auto-fixes** for 15 common misconfigurations.
+- A score: "Your machine is 30% secure"
+- A list of what's broken and how to fix it
+- 15 things fixed automatically with one click
+- A report you can show your boss, client, or auditor
 
-All changes are **reversible** — registry backup, System Restore Point, and
-full UNDO capability included.
+## What it doesn't do
+
+- It's not antivirus
+- It doesn't monitor anything in the background
+- It doesn't fix everything (85 of 100 checks need manual work)
+- It won't make your machine secure — it just tells you what's wrong
+
+## The loop that makes this useful
+
+1. Run it → get a score
+2. Fix some things
+3. Run it again → see score improve
+4. Show the improved report to someone
+5. Feel good
+
+Without scan history and trend tracking, there's no reason to run it twice. That's what we're building next.
 
 ## Features
 
-✅ 100 security checks (8 domains)  
-✅ 100 remediation texts  
-✅ 15 one-click auto-fixes (UAC, SMBv1, LSA, Defender, etc.)  
-✅ Dark theme (GitHub-dark palette)  
-✅ Live progress + summary stats  
-✅ Export: HTML (with JS search/filter), JSON (SIEM), CSV  
-✅ Registry backup + System Restore + UNDO ALL  
-✅ Admin check + confirmation dialogs  
-✅ Responsive layout — works maximized or tiled  
-✅ Zero pip dependencies — Python stdlib only  
-
-## Screenshot
-
-```
-┌──────────────────────────────────────────────────────┐
-│  CISO WINDOWS SECURITY AUDITOR      SCORE: 30%       │
-├──────────────────────────────────────────────────────┤
-│ [RUN DEEP SCAN] [EXPORT] | Format: ○HTML ○JSON ○CSV  │
-│  [FIX ALL] [UNDO]  ████████░░  Scanning [42/100]... │
-├──────────────────────────────────────────────────────┤
-│  PASS: 30  |  FAIL: 22  |  WARN: 48  |  PEND: 0     │
-├──────────────────────────────────────────────────────┤
-│  #042 UAC Prompts                        [ FAIL ]    │
-│  Details: UAC is DISABLED.                           │
-│  Remediation: ⚡ Enable UAC via registry...           │
-│  [APPLY AUTO-FIX]                                     │
-└──────────────────────────────────────────────────────┘
-```
-
-## Files
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `main.py` | ~566 | Tkinter GUI — window, toolbar, treeview, detail pane |
-| `auditor_core.py` | ~1560 | Engine — 100 checks, 15 fixes, remediation, backup/undo |
-| `export_report.py` | ~230 | Report generation — HTML, JSON, CSV |
-
-## Audit Domains
-
-| # | Domain | Checks | Auto-Fixable |
-|---|--------|--------|-------------|
-| 1 | Boot, Firmware & Hardware | 1-10 | — |
-| 2 | OS-Level Exploit Mitigations | 11-20 | LSA Protection |
-| 3 | Deep Persistence Mechanisms | 21-40 | — |
-| 4 | Identity & Access Management | 41-50 | UAC, NTLM, SMB Signing |
-| 5 | Network, Firewall & Traffic | 51-65 | SMBv1 |
-| 6 | Process Execution & App Whitelisting | 66-75 | PS EP, PS Logging |
-| 7 | File System & Data Security | 76-85 | Clipboard History |
-| 8 | Auditing, Logging & Telemetry | 86-100 | CmdLine, Telemetry, Defender, ASR, CFA, NetProtection |
+- 100 security checks across 8 domains
+- Dark theme (doesn't burn your eyes)
+- Search bar to find checks fast
+- Collapse/expand categories
+- Right-click menu (copy, fix, undo)
+- Export: HTML, JSON, CSV, PDF, PowerShell script
+- Undo everything if you mess up
+- Zero dependencies — just Python
 
 ## Safety
 
-Every change is reversible:
+Every fix is reversible:
 
-1. **System Restore Point** — created before each fix
-2. **Registry Backup** — original value saved before overwrite
-3. **UNDO ALL** — click UNDO to restore every changed key
-4. **Admin Check** — blocks changes if not running as Administrator
-5. **Confirmation** — shows full change list before applying
+1. Creates a System Restore Point before touching anything
+2. Backs up every registry key it changes
+3. UNDO button reverts everything
+4. Won't let you fix things without admin rights
+5. Asks "are you sure?" before every fix
 
 ## Requirements
 
-- Windows 10 or 11 (x64)
-- Python 3.8+ (any build)
-- Administrator privileges (for fixes only; scanning works without)
+- Windows 10 or 11
+- Python 3.8+
+- Admin rights (only for fixes — scanning works without)
 
-## Roadmap
+## What's in the box
 
-- PDF export · Search/filter bar · Persistent settings
-- Headless CLI mode · Scheduled scans · Trend tracking
-- Custom check plug-in system · CIS/NIST mapping · SIEM integration
+| File | What it does |
+|------|-------------|
+| `main.py` | The app — runs the scan, shows results |
+| `auditor_core.py` | The engine — 100 checks, 15 fixes |
+| `export_report.py` | Makes reports (HTML, JSON, CSV, PDF, PS1) |
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for full timeline.
+## What it checks
 
-## Documentation
+| # | Category | Auto-fix? |
+|---|----------|-----------|
+| 1-10 | Boot & Firmware (Secure Boot, TPM, BitLocker) | No |
+| 11-20 | OS Exploit Protections (ASLR, DEP, CFG, LSA) | LSA |
+| 21-40 | Persistence (Scheduled Tasks, Registry, Services) | No |
+| 41-50 | Identity (UAC, NTLM, SMB Signing, Passwords) | UAC, NTLM, SMB |
+| 51-65 | Network (Firewall, DNS, NetBIOS, SMBv1) | SMBv1 |
+| 66-75 | Execution (PowerShell, AppLocker, SmartScreen) | PS Policy, Logging |
+| 76-85 | Files (NTFS, Shadow Copies, Memory Dumps) | Clipboard |
+| 86-100 | Logging (Audit Policy, Defender, ASR, CFA) | CmdLine, Telemetry, Defender |
 
-| Doc | Description |
-|-----|-------------|
-| [PDR.md](docs/PDR.md) | Product Design Requirements |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture |
-| [TECH_STACK.md](docs/TECH_STACK.md) | Technology choices |
-| [DESIGN.md](docs/DESIGN.md) | UI/UX design |
-| [ROADMAP.md](docs/ROADMAP.md) | Release roadmap |
-| [PROJECT_PLAN.md](docs/PROJECT_PLAN.md) | Milestones & timeline |
-| [SECURITY.md](docs/SECURITY.md) | Security & safety |
+## What's coming next
+
+| Version | What | Why |
+|---------|------|-----|
+| v1.2 | .exe bundle + scan history + score trend | So people without Python can use it, and there's a reason to run it again |
+| v1.3 | Multi-machine mode + better PDF reports | So consultants can scan 10 machines and show professional reports |
+| v2.0 | Scheduled scans + email alerts + CIS mapping | So it runs automatically and tells you when things change |
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for details.
+
+## Docs
+
+| Doc | What it is |
+|-----|-----------|
+| [PDR.md](docs/PDR.md) | What we're building and why |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the code is structured |
+| [TECH_STACK.md](docs/TECH_STACK.md) | Why we chose what we chose |
+| [DESIGN.md](docs/DESIGN.md) | UI/UX decisions |
+| [ROADMAP.md](docs/ROADMAP.md) | What's coming next |
+| [PROJECT_PLAN.md](docs/PROJECT_PLAN.md) | Timeline and milestones |
+| [SECURITY.md](docs/SECURITY.md) | Safety and reversibility |

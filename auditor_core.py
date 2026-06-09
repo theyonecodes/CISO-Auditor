@@ -40,6 +40,13 @@ class AuditorCore:
         except:
             return False
 
+    @staticmethod
+    def _safe_int(val, default=0):
+        try:
+            return int(val)
+        except:
+            return default
+
     def _reg_read(self, hive, subkey, name):
         try:
             with winreg.OpenKey(hive, subkey) as key:
@@ -742,7 +749,7 @@ class AuditorCore:
     def _check_scheduled_tasks(self, check):
         val = self._ps_run("Get-ScheduledTask | Where-Object {$_.State -ne 'Disabled'} | Measure-Object | Select-Object -ExpandProperty Count")
         if val:
-            count = int(val)
+            count = self._safe_int(val, 0)
             check.status, check.details = "WARNING", f"{count} active scheduled tasks found. Review for anomalous triggers."
         else:
             check.status, check.details = "PASS", "Few or no active scheduled tasks."
@@ -750,7 +757,7 @@ class AuditorCore:
     def _check_wmi_consumers(self, check):
         val = self._ps_run("Get-WmiObject -Namespace root\\subscription -Class __EventFilter 2>$null | Measure-Object | Select-Object -ExpandProperty Count")
         val2 = self._ps_run("Get-WmiObject -Namespace root\\subscription -Class CommandLineEventConsumer 2>$null | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             check.status, check.details = "WARNING", f"{val} WMI EventFilter(s) found. Review for persistence."
         else:
             check.status, check.details = "PASS", "No rogue WMI EventFilter subscriptions detected."
@@ -818,14 +825,14 @@ class AuditorCore:
 
     def _check_service_context(self, check):
         val = self._ps_run("Get-CimInstance Win32_Service | Where-Object {$_.StartName -eq 'LocalSystem' -and $_.PathName -notmatch 'windows'} | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 5:
+        if val and self._safe_int(val) > 5:
             check.status, check.details = "WARNING", f"{val} non-MS services running as LocalSystem. Review."
         else:
             check.status, check.details = "PASS", "Service execution contexts look reasonable."
 
     def _check_bits_jobs(self, check):
         val = self._ps_run("Get-BitsTransfer 2>$null | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             check.status, check.details = "WARNING", f"{val} active BITS transfer job(s). Verify legitimacy."
         else:
             check.status, check.details = "PASS", "No active BITS jobs."
@@ -1070,7 +1077,7 @@ class AuditorCore:
         val = self._reg_read(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "CachedLogonsCount")
         if val == "0":
             check.status, check.details = "PASS", "Cached credentials are disabled."
-        elif val and int(val) <= 2:
+        elif val and self._safe_int(val) <= 2:
             check.status, check.details = "WARNING", f"Cached logons: {val}. Consider setting to 0 for high security."
         elif val:
             check.status, check.details = "WARNING", f"Cached logons: {val}. High count risks credential theft."
@@ -1089,7 +1096,7 @@ class AuditorCore:
 
     def _check_firewall(self, check):
         val = self._ps_run("Get-NetFirewallProfile | Where-Object {$_.Enabled -eq $False} | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             profiles = self._ps_run("Get-NetFirewallProfile | Where-Object {$_.Enabled -eq $False} | Select-Object -ExpandProperty Name")
             check.status, check.details = "FAIL", f"Firewall disabled on profile(s): {profiles.replace(chr(10), ', ')}"
         else:
@@ -1146,21 +1153,21 @@ class AuditorCore:
 
     def _check_open_ports(self, check):
         val = self._ps_run("netstat -anob 2>$null | Select-String 'LISTENING' | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             check.status, check.details = "WARNING", f"{val} listening ports. Review for unauthorized services."
         else:
             check.status, check.details = "WARNING", "Could not enumerate open ports."
 
     def _check_rogue_certs(self, check):
         val = self._ps_run("Get-ChildItem -Path Cert:\\CurrentUser\\Root 2>$null | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 50:
+        if val and self._safe_int(val) > 50:
             check.status, check.details = "WARNING", f"{val} trusted root CAs. Audit for rogue certificates."
         else:
             check.status, check.details = "WARNING", f"Certificate store size: {val or 'Unknown'}. Manual review recommended."
 
     def _check_ipsec(self, check):
         val = self._ps_run("Get-NetIPsecRule 2>$null | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             check.status, check.details = "WARNING", f"{val} IPsec rule(s) exist. Verify no rogue bypass rules."
         else:
             check.status, check.details = "PASS", "No custom IPsec rules."
@@ -1198,14 +1205,14 @@ class AuditorCore:
 
     def _check_icmp(self, check):
         val = self._ps_run("Get-NetFirewallRule | Where-Object {$_.DisplayName -like '*ICMP*' -and $_.Enabled -eq $True} | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             check.status, check.details = "WARNING", f"{val} ICMP rules active."
         else:
             check.status, check.details = "WARNING", "ICMP configuration not explicitly checked."
 
     def _check_arp(self, check):
         val = self._ps_run("arp -a 2>$null | Select-String 'dynamic' | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             check.status, check.details = "WARNING", f"{val} dynamic ARP entries. Review for spoofed gateway."
         else:
             check.status, check.details = "WARNING", "ARP cache empty or inaccessible."
@@ -1299,7 +1306,7 @@ class AuditorCore:
 
     def _check_shadow_copies(self, check):
         val = self._ps_run("Get-CimInstance Win32_ShadowCopy 2>$null | Measure-Object | Select-Object -ExpandProperty Count")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             check.status, check.details = "PASS", f"{val} shadow copies exist. Ransomware recovery possible."
         else:
             check.status, check.details = "FAIL", "No shadow copies. Ransomware recovery harder."
@@ -1400,16 +1407,16 @@ class AuditorCore:
 
     def _check_event_log_size(self, check):
         val = self._ps_run("Get-WinEvent -ListLog Security 2>$null | Select-Object -ExpandProperty MaximumSizeInBytes")
-        if val and int(val) >= 1073741824:
-            check.status, check.details = "PASS", f"Security log size: {int(val)//1048576}MB. Adequate."
+        if val and self._safe_int(val) >= 1073741824:
+            check.status, check.details = "PASS", f"Security log size: {self._safe_int(val)//1048576}MB. Adequate."
         elif val:
-            check.status, check.details = "WARNING", f"Security log size: {int(val)//1048576}MB. Consider 1024MB+."
+            check.status, check.details = "WARNING", f"Security log size: {self._safe_int(val)//1048576}MB. Consider 1024MB+."
         else:
             check.status, check.details = "WARNING", "Could not determine security log size."
 
     def _check_log_forwarding(self, check):
         val = self._ps_run("Get-WinEvent -ListLog ForwardedEvents 2>$null | Select-Object -ExpandProperty RecordCount")
-        if val and int(val) > 0:
+        if val and self._safe_int(val) > 0:
             check.status, check.details = "PASS", "Event forwarding appears configured."
         else:
             check.status, check.details = "WARNING", "No forwarded events. SIEM integration not detected."

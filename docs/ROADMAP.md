@@ -1,104 +1,88 @@
-# Roadmap — CISO Advanced Security Auditor
+# Roadmap — CISO Security Auditor
 
-## Legend
-- 🟢 **Done** — shipped and verified
-- 🟡 **In Progress** — being worked on this sprint
-- ⬜ **Planned** — estimated for future sprint
-- 📅 **Target** — release date
+## The Problem We're Solving
 
----
+Small businesses, freelancers, and homelab users need to know if their Windows machines are secure. They don't have $10K/year for Nessus or CrowdStrike. They need a quick answer and a report they can show someone.
 
-## v1.0 — "Baseline" (Current 🟢)
+## The Retention Problem
 
-**Target**: 2026-06-14 | **Status**: 66% complete
+Right now, someone runs the tool once, gets a score, maybe fixes a few things, and never opens it again. That's not useful. We need a reason for people to come back.
 
-### Scan Engine (100%)
-- [x] 100 checks across 8 domains
-- [x] 100 remediation texts
-- [x] Live progress reporting
-
-### Auto-Fix (100%)
-- [x] 15 one-click fixes
-- [x] Registry backup + System Restore
-- [x] UNDO ALL rollback
-- [x] Admin check + confirmation dialogs
-
-### GUI (100%)
-- [x] Dark theme (GitHub palette)
-- [x] Treeview + detail pane split
-- [x] Progress bar + summary bar
-- [x] Responsive resize + visible scrollbars
-
-### Export (62%)
-- [x] HTML (with JS search/filter)
-- [x] JSON (SIEM-ready)
-- [x] CSV
-- [ ] PDF
-- [ ] Remediation script export
+**The loop we're building:**
+1. Run it → get a score
+2. Fix some things
+3. Run it again → see score improve
+4. Show the improved report to someone
+5. Feel good → tell someone else
 
 ---
 
-## v1.1 — "Polished" (Next Sprint)
+## v1.0 — "Baseline" (Done)
 
-**Target**: 2026-06-28 | **Estimated**: 34 SP
+- 100 checks, 15 auto-fixes, dark GUI
+- Export: HTML, JSON, CSV
+- Registry backup + System Restore + UNDO
 
-| Feature | SP | Priority |
-|---------|-----|----------|
-| PDF export (libre → reportlab or WebView2) | 13 | P2 |
-| Treeview search/filter bar | 5 | P2 |
-| Collapsible category groups | 8 | P2 |
-| Persistent settings (JSON config file) | 3 | P2 |
-| Right-click context menu | 3 | P2 |
-| Per-check undo | 5 | P2 |
+## v1.1 — "Polished" (Done)
 
----
-
-## v1.2 — "Power User" (Mid-term)
-
-**Target**: 2026-07-26 | **Estimated**: 34 SP
-
-| Feature | SP | Priority |
-|---------|-----|----------|
-| Headless CLI mode (`--scan`, `--export`) | 8 | P2 |
-| Scheduled scan via Task Scheduler | 5 | P2 |
-| Remediation script export (.ps1) | 5 | P2 |
-| Comparative scoring (trend graph) | 8 | P2 |
-| PyInstaller .exe bundle | 5 | P2 |
-| Email report delivery (SMTP) | 8 | P2 |
+- Search bar, category toggles, context menu
+- Per-check undo, PDF export, PS1 export
+- Persistent settings, maximized launch
 
 ---
 
-## v2.0 — "Enterprise" (Long-term)
+## v1.2 — "Sticky" (Current)
 
-**Target**: 2026-Q3 | **Estimated**: 81 SP
+**Goal:** Give people a reason to run it twice.
 
-| Feature | SP | Priority |
-|---------|-----|----------|
-| Custom check plug-in system | 13 | P3 |
-| CIS / NIST / ISO framework mapping | 21 | P3 |
-| SIEM integration (Syslog / WEF) | 13 | P3 |
-| CVE database lookup | 13 | P3 |
-| Remote scan (WinRM) | 21 | P3 |
-| Light theme toggle | 8 | P3 |
-| Multi-language (i18n) | 13 | P3 |
+| Feature | What it does | Why it matters | SP |
+|---------|-------------|----------------|-----|
+| **PyInstaller .exe** | Double-click to run, no Python needed | 90% of users don't have Python | 5 |
+| **Scan history** | Save every scan to a JSON file with timestamp | Without this, there's no "before and after" | 8 |
+| **Score trend** | "Last time: 30%, Now: 65%" | This is the hook — people want to see improvement | 5 |
+| **Casual language** | UI and reports speak like a human, not a corporation | People trust things that talk like them | 3 |
+
+**Target:** 2026-07-26
 
 ---
 
-## Milestone Timeline
+## v1.3 — "Consultant" (Next)
+
+**Goal:** Make it useful for people who set up machines for clients.
+
+| Feature | What it does | Why it matters | SP |
+|---------|-------------|----------------|-----|
+| **Multi-machine mode** | Scan 10 machines, see all scores in one place | Consultants need to audit fleets, not single machines | 13 |
+| **Better PDF reports** | Professional-looking reports with logos and summaries | The report IS the product — make it look like it | 8 |
+| **CLI mode** | `python main.py --scan --export json` | Scriptable for RMM tools and automation | 8 |
+| **Report comparison** | "Machine A: 45%, Machine B: 72%" | Show clients which machines need work | 5 |
+
+**Target:** 2026-08-16
+
+---
+
+## Timeline
 
 ```
-Jun 2026                Jul 2026                Aug 2026
-│                       │                       │
-v1.0────●──────────────│                       │
-        │  Sprint 4     │                       │
-        │  (safety,     │                       │
-        │   docs, repo) │                       │
-                       v1.1───●────────────────│
-                              │  Sprint 5-6     │
-                              │  (PDF, search,  │
-                              │   settings)     │
-                                               v2.0───●───────▶
-                                                      │  Sprint 7-10
-                                                      │  (plugins, CIS,
-                                                      │   SIEM, remote)
+Jun 2026          Jul 2026          Aug 2026
+│                 │                 │
+v1.0 ──●         │                 │
+v1.1 ────●       │                 │
+        │         v1.2 ──────●     │
+        │         (sticky)         │
+        │                          v1.3 ──────●
+        │                          (consultant)
 ```
+
+---
+
+## How We Prioritize
+
+We don't build features because they're cool. We build them because they answer one of these questions:
+
+1. **Can someone without Python use this?** → .exe
+2. **Is there a reason to run it twice?** → scan history + trend
+3. **Can a consultant show this to a client?** → better reports
+4. **Does it talk like a human?** → casual language
+
+If a feature doesn't answer one of these, it doesn't ship.

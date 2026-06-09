@@ -7,6 +7,11 @@ __pycache__/
 CISO_Audit_Report*.html
 CISO_Audit_Report*.json
 CISO_Audit_Report*.csv
+CISO_Audit_Report*.pdf
+CISO_Audit_Report*.ps1
+
+# App settings
+settings.json
 
 # Editor
 .vscode/

@@ -1,4 +1,4 @@
-# Technology Stack — CISO Advanced Security Auditor
+# Technology Stack — CISO Security Auditor
 
 ## Runtime
 
@@ -67,8 +67,7 @@ and `CreationFlags.CREATE_NO_WINDOW` to suppress console flashes.
 
 | Feature | Likely Approach |
 |---------|----------------|
-| PDF export | `reportlab` (only external dep) or HTML→PDF via Edge WebView2 |
+| PDF export | Pure-Python (already implemented — no external deps) |
 | CI/CD | GitHub Actions — lint + test on push |
 | PyInstaller bundle | Single .exe for non-technical users |
-| Plug-in system | `importlib` + `.py` files in `plugins/` directory |
 | Command-line mode | `argparse` + `--scan`, `--export` flags |
