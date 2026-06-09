@@ -695,15 +695,20 @@ class CISOAuditorApp:
         t.start()
 
     def _scan_process(self):
-        self.auditor.run_all_checks(progress_callback=self._update_progress)
-        self.root.after(0, self._scan_complete)
+        try:
+            self.auditor.run_all_checks(progress_callback=self._update_progress)
+        except Exception as e:
+            self.root.after(0, lambda: self.status_lbl.config(
+                text=f"Scan error: {str(e)}"))
+        finally:
+            self.root.after(0, self._scan_complete)
 
     def _update_progress(self, current, total, check):
         def ui_update():
             self.progress_var.set((current / total) * 100)
             self.status_lbl.config(text=f"[{current}/{total}] {check.name[:50]}")
             self.tree.set(check.id, "Status", f"[{check.status}]")
-            self.tree.set(check.id, "Details", check.details[:120])
+            self.tree.set(check.id, "Details", (check.details or "")[:120])
             tags = (check.status, "alt") if (current % 2 == 0) else (check.status,)
             self.tree.item(check.id, tags=tags)
             self.tree.see(check.id)
@@ -730,6 +735,12 @@ class CISOAuditorApp:
         self.run_btn.config(state=tk.NORMAL, text="RUN DEEP SCAN", bg=ACCENT)
         self.export_btn.config(state=tk.NORMAL)
         self.fix_all_btn.config(state=tk.NORMAL)
+
+        for i, c in enumerate(self.auditor.checks):
+            self.tree.set(c.id, "Status", c.status)
+            self.tree.set(c.id, "Details", c.details or "")
+            alt = (c.id % 2 == 0)
+            self.tree.item(c.id, tags=(c.status, "alt") if alt else (c.status,))
 
         self._update_summary()
         fixable = sum(1 for c in self.auditor.checks
