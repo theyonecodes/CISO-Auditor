@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import threading
 import json
 import os
+from datetime import datetime
 from auditor_core import AuditorCore
 from export_report import save_report, FORMATS
 
@@ -88,9 +89,16 @@ class CISOAuditorApp:
         tk.Label(header, text="CISO WINDOWS SECURITY AUDITOR", bg=BG2, fg=ACCENT,
                  font=FONT_TITLE).pack(side=tk.LEFT, padx=25, pady=14)
 
-        self.header_score = tk.Label(header, text="SCORE: --", bg=BG2, fg=GRAY,
+        score_frame = tk.Frame(header, bg=BG2)
+        score_frame.pack(side=tk.RIGHT, padx=25, pady=14)
+
+        self.header_trend = tk.Label(score_frame, text="", bg=BG2, fg=GRAY,
+                                     font=FONT_MONO)
+        self.header_trend.pack(side=tk.LEFT, padx=(0, 12))
+
+        self.header_score = tk.Label(score_frame, text="SCORE: --", bg=BG2, fg=GRAY,
                                      font=FONT_MONO_BOLD)
-        self.header_score.pack(side=tk.RIGHT, padx=25, pady=14)
+        self.header_score.pack(side=tk.LEFT)
 
         # ========== ROW 1: Toolbar ==========
         toolbar = tk.Frame(self.root, bg=BG, highlightthickness=0)
@@ -192,17 +200,51 @@ class CISOAuditorApp:
             lbl.pack(side=tk.LEFT)
             self._score_labels[name.lower()] = lbl
 
-        # ========== ROW 3: Main content (treeview + detail pane) ==========
+        # ========== ROW 3: Main content (history + treeview + detail pane) ==========
         main = tk.Frame(self.root, bg=BG, highlightthickness=0)
         main.grid(row=3, column=0, sticky="nsew", padx=20, pady=(4, 16))
-        main.columnconfigure(0, weight=1)
+        main.columnconfigure(1, weight=1)
         main.rowconfigure(0, weight=1)
         main.rowconfigure(1, weight=0)
+
+        # --- History panel (left side) ---
+        history_outer = tk.Frame(main, bg=BG3, highlightthickness=1,
+                                 highlightbackground=BORDER, width=220)
+        history_outer.grid(row=0, column=0, sticky="ns", pady=(0, 8))
+        history_outer.grid_propagate(False)
+
+        history_top = tk.Frame(history_outer, bg=BG2, height=30)
+        history_top.pack(fill=tk.X)
+        history_top.pack_propagate(False)
+        tk.Label(history_top, text="SCAN HISTORY", bg=BG2, fg=ACCENT,
+                 font=FONT_BOLD).pack(side=tk.LEFT, padx=10, pady=5)
+
+        history_scroll = tk.Frame(history_outer, bg=BG3)
+        history_scroll.pack(fill=tk.BOTH, expand=True)
+        history_scroll.rowconfigure(0, weight=1)
+        history_scroll.columnconfigure(0, weight=1)
+
+        self.history_list = tk.Frame(history_scroll, bg=BG3)
+        self.history_list.grid(row=0, column=0, sticky="nsew")
+
+        vsb_h = tk.Scrollbar(history_scroll, orient="vertical", command=self.history_list.yview)
+        vsb_h.grid(row=0, column=1, sticky="ns")
+        self.history_list.configure(yscrollcommand=vsb_h.set)
+
+        self.history_canvas = tk.Canvas(history_scroll, bg=BG3, highlightthickness=0)
+        self.history_canvas.grid(row=0, column=0, sticky="nsew")
+        self.history_canvas.create_window((0, 0), window=self.history_list, anchor="nw")
+        self.history_canvas.configure(yscrollcommand=vsb_h.set)
+        self.history_list.bind("<Configure>", lambda e: self.history_canvas.configure(
+            scrollregion=self.history_canvas.bbox("all")))
+
+        self._history_items = []
+        self._load_history_panel()
 
         # --- Treeview container ---
         tree_outer = tk.Frame(main, bg=BG3, highlightthickness=1,
                               highlightbackground=BORDER)
-        tree_outer.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
+        tree_outer.grid(row=0, column=1, sticky="nsew", pady=(0, 8), padx=(8, 0))
         tree_outer.rowconfigure(2, weight=1)
         tree_outer.columnconfigure(0, weight=1)
 
@@ -294,7 +336,7 @@ class CISOAuditorApp:
         # --- Detail pane ---
         self.detail_outer = tk.Frame(main, bg=BG3, highlightthickness=1,
                                      highlightbackground=BORDER)
-        self.detail_outer.grid(row=1, column=0, sticky="ew", pady=(4, 0))
+        self.detail_outer.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(4, 0))
         self.detail_outer.columnconfigure(0, weight=1)
 
         # Empty state
@@ -370,6 +412,33 @@ class CISOAuditorApp:
         self.tree.bind("<Button-3>", self._on_right_click)
         self.tree.bind("<KP_Enter>", lambda e: self.apply_fix())
         self.tree.bind("<Return>", lambda e: self.apply_fix())
+
+    def _load_history_panel(self):
+        for item in self.history_list.winfo_children():
+            item.destroy()
+        self._history_items = []
+        history = self.auditor.load_history()
+        if not history:
+            lbl = tk.Label(self.history_list, text="No scans yet", bg=BG3, fg=FG2,
+                           font=FONT, wraplength=180)
+            lbl.pack(pady=20, padx=10)
+            return
+        for i, scan in enumerate(reversed(history)):
+            ts = scan.get("timestamp", "")
+            score = scan.get("score", 0)
+            try:
+                dt = datetime.fromisoformat(ts)
+                time_str = dt.strftime("%b %d, %H:%M")
+            except:
+                time_str = ts[:16]
+            score_color = GREEN if score >= 70 else (AMBER if score >= 40 else RED)
+            item = tk.Frame(self.history_list, bg=BG3, cursor="hand2")
+            item.pack(fill=tk.X, padx=6, pady=2)
+            tk.Label(item, text=time_str, bg=BG3, fg=FG2, font=FONT,
+                     anchor="w").pack(fill=tk.X, padx=8)
+            tk.Label(item, text=f"{score}%", bg=BG3, fg=score_color,
+                     font=FONT_MONO_BOLD, anchor="w").pack(fill=tk.X, padx=8)
+            self._history_items.append((item, scan))
 
     def _filter_tree(self, *_):
         q = self.search_var.get().lower()
@@ -745,6 +814,20 @@ class CISOAuditorApp:
         score_color = GREEN if score >= 70 else (AMBER if score >= 40 else RED)
         self.header_score.config(text=f"SCORE: {score}%", fg=score_color)
 
+    def _update_trend(self):
+        last = self.auditor.get_last_score()
+        if last is None:
+            self.header_trend.config(text="", fg=GRAY)
+            return
+        current = self.auditor._compute_score()
+        diff = round(current - last, 1)
+        if diff > 0:
+            self.header_trend.config(text=f"Last: {last}%  ↑ +{diff}%", fg=GREEN)
+        elif diff < 0:
+            self.header_trend.config(text=f"Last: {last}%  ↓ {diff}%", fg=RED)
+        else:
+            self.header_trend.config(text=f"Last: {last}%  — same", fg=GRAY)
+
     def _scan_complete(self):
         self.scan_complete = True
         self.run_btn.config(state=tk.NORMAL, text="RUN SCAN", bg=ACCENT)
@@ -758,6 +841,11 @@ class CISOAuditorApp:
             self.tree.item(c.id, tags=(c.status, "alt") if alt else (c.status,))
 
         self._update_summary()
+
+        scan = self.auditor.save_scan()
+        self._load_history_panel()
+        self._update_trend()
+
         fixable = sum(1 for c in self.auditor.checks
                       if c.status in ("FAIL", "WARNING") and c.auto_fixable)
         if fixable:

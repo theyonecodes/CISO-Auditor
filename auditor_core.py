@@ -1,5 +1,6 @@
 import winreg
 import os
+import json
 import ctypes
 import subprocess
 from datetime import datetime
@@ -1625,3 +1626,45 @@ class AuditorCore:
             check.details = "Network Protection enabled."
             return "Fixed: Network Protection activated."
         return "FAILED: Unable to enable Network Protection. Run as Admin."
+
+    # ========== Scan History ==========
+
+    HISTORY_DIR = os.path.join(os.path.expanduser("~"), ".ciso_auditor")
+    HISTORY_FILE = os.path.join(HISTORY_DIR, "scan_history.json")
+
+    def _compute_score(self):
+        total = len(self.checks)
+        if total == 0:
+            return 0.0
+        passed = sum(1 for c in self.checks if c.status == "PASS")
+        return round((passed / total) * 100, 1)
+
+    def save_scan(self):
+        os.makedirs(self.HISTORY_DIR, exist_ok=True)
+        scan = {
+            "timestamp": datetime.now().isoformat(),
+            "score": self._compute_score(),
+            "checks": [
+                {"id": c.id, "status": c.status, "details": c.details or ""}
+                for c in self.checks
+            ]
+        }
+        history = self.load_history()
+        history.append(scan)
+        with open(self.HISTORY_FILE, "w") as f:
+            json.dump({"scans": history}, f, indent=2)
+        return scan
+
+    def load_history(self):
+        try:
+            with open(self.HISTORY_FILE, "r") as f:
+                data = json.load(f)
+            return data.get("scans", [])
+        except:
+            return []
+
+    def get_last_score(self):
+        history = self.load_history()
+        if len(history) < 2:
+            return None
+        return history[-2].get("score")
