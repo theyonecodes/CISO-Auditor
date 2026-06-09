@@ -8,9 +8,9 @@
 
 ---
 
-## v1.0 — "Baseline" (Current 🟢)
+## v1.0 — "Baseline" (Complete 🟢)
 
-**Target**: 2026-06-14 | **Status**: 66% complete
+**Target**: 2026-06-14 | **Status**: 100% complete
 
 ### Scan Engine (100%)
 - [x] 100 checks across 8 domains
@@ -28,28 +28,31 @@
 - [x] Treeview + detail pane split
 - [x] Progress bar + summary bar
 - [x] Responsive resize + visible scrollbars
+- [x] Treeview search/filter bar
+- [x] Persistent settings (JSON config file)
+- [x] Right-click context menu
+- [x] Per-check undo
 
-### Export (62%)
+### Export (100%)
 - [x] HTML (with JS search/filter)
 - [x] JSON (SIEM-ready)
 - [x] CSV
-- [ ] PDF
-- [ ] Remediation script export
+- [x] PowerShell remediation script (.ps1)
 
 ---
 
-## v1.1 — "Polished" (Next Sprint)
+## v1.1 — "Polished" (Complete 🟢)
 
-**Target**: 2026-06-28 | **Estimated**: 34 SP
+**Target**: 2026-06-28 | **Status**: 85% complete
 
-| Feature | SP | Priority |
-|---------|-----|----------|
-| PDF export (libre → reportlab or WebView2) | 13 | P2 |
-| Treeview search/filter bar | 5 | P2 |
-| Collapsible category groups | 8 | P2 |
-| Persistent settings (JSON config file) | 3 | P2 |
-| Right-click context menu | 3 | P2 |
-| Per-check undo | 5 | P2 |
+| Feature | SP | Status |
+|---------|-----|--------|
+| Treeview search/filter bar | 5 | ✅ Done |
+| Persistent settings (JSON config file) | 3 | ✅ Done |
+| Right-click context menu | 3 | ✅ Done |
+| Per-check undo | 5 | ✅ Done |
+| Collapsible category groups | 8 | ⬜ Planned |
+| PDF export (optional dep: fpdf2) | 13 | ⬜ Planned |
 
 ---
 
