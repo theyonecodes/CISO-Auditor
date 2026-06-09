@@ -238,6 +238,8 @@ def generate_ps1(checks):
             lines.append(f"# Remediation: {c.remediation}")
             lines.append("")
     lines.append("Write-Host 'Review each step before executing.' -ForegroundColor Yellow")
+    lines.append("")
+    lines.append("Read-Host -Prompt 'Press Enter to exit'")
     return "\n".join(lines)
 
 def generate_pdf(checks):
