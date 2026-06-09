@@ -498,7 +498,7 @@ class CISOAuditorApp:
 
     def _undo_single(self, check_id):
         if not self.auditor.is_admin():
-            messagebox.showwarning("Need Admin",
+            messagebox.showwarning("Hold on",
                 "Run as Administrator to fix things.")
             return
         check = next((c for c in self.auditor.checks if c.id == check_id), None)
@@ -633,7 +633,7 @@ class CISOAuditorApp:
             except Exception as e:
                 try:
                     self.root.after(0, lambda: self.fix_result_lbl.config(
-                        text=f"Error: {str(e)}", fg=RED))
+                        text=f"Oops: {str(e)}", fg=RED))
                 except:
                     pass
 
@@ -661,7 +661,7 @@ class CISOAuditorApp:
 
     def fix_all_auto_fixable(self):
         if not self.auditor.is_admin():
-            messagebox.showwarning("Need Admin",
+            messagebox.showwarning("Hold on",
                 "Run as Administrator to apply fixes.")
             return
         fixable = [c for c in self.auditor.checks
@@ -855,7 +855,7 @@ class CISOAuditorApp:
 
     def export_report(self):
         if not self.scan_complete:
-            messagebox.showwarning("Nothing to Export", "Run a scan first.")
+            messagebox.showwarning("No scan yet", "Run a scan first.")
             return
 
         fmt = self.export_format.get()
@@ -864,7 +864,7 @@ class CISOAuditorApp:
             defaultextension=fmt_info["ext"],
             filetypes=[(fmt_info["desc"], f"*{fmt_info['ext']}")],
             initialfile=f"CISO_Audit_Report{fmt_info['ext']}",
-            title="Save Report"
+            title="Save report"
         )
         if not filepath:
             return
@@ -876,7 +876,7 @@ class CISOAuditorApp:
                     "Done", f"Saved to:\n{result}"))
             except Exception as e:
                 self.root.after(0, lambda: messagebox.showerror(
-                    "Export Failed", str(e)))
+                    "That didn't work", str(e)))
 
         t = threading.Thread(target=do_export, daemon=True)
         t.start()
