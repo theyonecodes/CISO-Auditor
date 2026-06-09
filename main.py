@@ -206,7 +206,7 @@ class CISOAuditorApp:
         tree_outer = tk.Frame(main, bg=BG3, highlightthickness=1,
                               highlightbackground=BORDER)
         tree_outer.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
-        tree_outer.rowconfigure(1, weight=1)
+        tree_outer.rowconfigure(2, weight=1)
         tree_outer.columnconfigure(0, weight=1)
 
         # Treeview toolbar (column headers + count)
@@ -217,12 +217,27 @@ class CISOAuditorApp:
         tk.Label(tree_top, text="SECURITY CHECKS", bg=BG2, fg=ACCENT,
                  font=FONT_BOLD).pack(side=tk.LEFT, padx=12, pady=5)
         self.row_count_lbl = tk.Label(tree_top, text="100 items", bg=BG2, fg=FG2,
-                                      font=FONT)
+                                       font=FONT)
         self.row_count_lbl.pack(side=tk.RIGHT, padx=12, pady=5)
+
+        # --- Category toggle bar ---
+        self._cat_bar = tk.Frame(tree_outer, bg=BG2, highlightthickness=1, highlightbackground=BORDER)
+        self._cat_bar.grid(row=1, column=0, sticky="ew")
+        self._cat_btns = {}
+        self._collapsed_cats = set()
+        FONT_CAT = ("Segoe UI", 8)
+        for cat in self.auditor.CATEGORIES:
+            short = cat.split(",")[0].split(" &")[0][:12]
+            btn = tk.Button(self._cat_bar, text=f"▾ {short}", bg=BG2, fg=FG2,
+                           font=FONT_CAT, relief=tk.FLAT, padx=6, pady=2, cursor="hand2",
+                           activebackground=BG3, activeforeground=ACCENT, bd=0)
+            btn.pack(side=tk.LEFT, padx=2, pady=2)
+            btn.bind("<Button-1>", lambda e, c=cat: self._toggle_category(c))
+            self._cat_btns[cat] = btn
 
         # Treeview + scrollbar
         tree_frame = tk.Frame(tree_outer, bg=BG)
-        tree_frame.grid(row=1, column=0, sticky="nsew")
+        tree_frame.grid(row=2, column=0, sticky="nsew")
         tree_frame.rowconfigure(0, weight=1)
         tree_frame.columnconfigure(0, weight=1)
 
@@ -362,14 +377,31 @@ class CISOAuditorApp:
     def _filter_tree(self, *_):
         q = self.search_var.get().lower()
         for item in self.tree.get_children():
+            cid = int(item)
+            check = next((c for c in self.auditor.checks if c.id == cid), None)
+            if not check:
+                continue
+            cat_collapsed = check.category in self._collapsed_cats
             vals = [str(v).lower() for v in self.tree.item(item, "values")]
-            match = not q or any(q in v for v in vals)
-            if match:
+            text_match = not q or any(q in v for v in vals)
+            if text_match and not cat_collapsed:
                 self.tree.reattach(item, "", "end")
             else:
                 self.tree.detach(item)
         shown = len(self.tree.get_children())
         self.row_count_lbl.config(text=f"{shown} items")
+
+    def _toggle_category(self, cat):
+        if cat in self._collapsed_cats:
+            self._collapsed_cats.discard(cat)
+        else:
+            self._collapsed_cats.add(cat)
+        btn = self._cat_btns[cat]
+        collapsed = cat in self._collapsed_cats
+        short = cat.split(",")[0].split(" &")[0][:12]
+        btn.config(text=f"{'▸' if collapsed else '▾'} {short}",
+                   fg=RED if collapsed else FG2)
+        self._filter_tree()
 
     def _on_right_click(self, event):
         sel = self.tree.identify_row(event.y)
