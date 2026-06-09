@@ -43,7 +43,7 @@
 
 ## v1.1 — "Polished" (Complete 🟢)
 
-**Target**: 2026-06-28 | **Status**: 85% complete
+**Target**: 2026-06-28 | **Status**: 100% complete
 
 | Feature | SP | Status |
 |---------|-----|--------|
@@ -51,8 +51,8 @@
 | Persistent settings (JSON config file) | 3 | ✅ Done |
 | Right-click context menu | 3 | ✅ Done |
 | Per-check undo | 5 | ✅ Done |
-| Collapsible category groups | 8 | ⬜ Planned |
-| PDF export (optional dep: fpdf2) | 13 | ⬜ Planned |
+| Collapsible category groups | 8 | ✅ Done |
+| PDF export (pure-Python, no deps) | 13 | ✅ Done |
 
 ---
 
