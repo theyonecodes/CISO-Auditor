@@ -240,10 +240,132 @@ def generate_ps1(checks):
     lines.append("Write-Host 'Review each step before executing.' -ForegroundColor Yellow")
     return "\n".join(lines)
 
+def generate_pdf(checks):
+    import io
+    buf = io.BytesIO()
+    def w(s):
+        buf.write(s.encode("latin-1", errors="replace"))
+    def obj_start(n):
+        w(f"{n} 0 obj\n")
+    def obj_end():
+        w("endobj\n")
+
+    cats = _count_by_category(checks)
+    total = len(checks)
+    passed = sum(v["pass"] for v in cats.values())
+    failed = sum(v["fail"] for v in cats.values())
+    warned = sum(v["warning"] for v in cats.values())
+    pending = sum(v["pending"] for v in cats.values())
+    score = round((passed / total) * 100, 1) if total else 0
+
+    lines_out = []
+    y = 750
+    LINE = 14
+    def add_line(text, size=10, bold=False):
+        nonlocal y
+        if y < 60:
+            lines_out.append((text, size, bold, 750))
+            y = 750 - LINE
+        else:
+            lines_out.append((text, size, bold, y))
+            y -= LINE
+
+    add_line("CISO Advanced Security Auditor", size=18, bold=True)
+    add_line(f"Security Audit Report", size=14, bold=True)
+    add_line(f"Generated: {_format_timestamp()}", size=9)
+    add_line("")
+    add_line(f"Security Score: {score}%", size=14, bold=True)
+    add_line("")
+    add_line(f"PASS: {passed}    FAIL: {failed}    WARNING: {warned}    PENDING: {pending}", size=11, bold=True)
+    add_line(f"Total Checks: {total}", size=10)
+    add_line("")
+    add_line("Domain Summary", size=13, bold=True)
+    add_line("")
+    for cat, counts in cats.items():
+        pct = round((counts["pass"] / counts["total"]) * 100, 1)
+        add_line(f"  {cat}: {counts['pass']}/{counts['total']} pass ({pct}%)", size=9)
+    add_line("")
+    add_line("Detailed Findings", size=13, bold=True)
+    add_line("")
+    for c in checks:
+        add_line(f"#{c.id:03d}  {c.name}  [{c.status}]", size=9, bold=True)
+        add_line(f"    {c.details}", size=8)
+        if c.remediation:
+            add_line(f"    Remediation: {c.remediation}", size=8)
+        add_line("")
+
+    page_lines = []
+    pages = []
+    current_page = []
+    current_y = 750
+    for text, size, bold, _ in lines_out:
+        if current_y < 60:
+            pages.append(current_page)
+            current_page = []
+            current_y = 750
+        current_page.append((text, size, bold, current_y))
+        current_y -= LINE
+    if current_page:
+        pages.append(current_page)
+
+    obj_num = 1
+    objs = {}
+    objs[obj_num] = f"{obj_num} 0 obj\n<< /Type /Catalog /Pages {obj_num+1} 0 R >>\nendobj\n"
+    obj_num += 1
+
+    page_refs = []
+    for pi in range(len(pages)):
+        obj_num += 1
+        page_refs.append(f"{obj_num} 0 R")
+        objs[obj_num] = f"{obj_num} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents {obj_num+1} 0 R /Resources << /Font << /F1 {len(pages)*2+3} 0 R /F2 {len(pages)*2+4} 0 R >> >> >>\nendobj\n"
+
+        stream_lines = ["BT"]
+        for text, size, bold, py in pages[pi]:
+            font = "/F2" if bold else "/F1"
+            safe = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            stream_lines.append(f"{font} {size} Tf 40 {py} Td ({safe}) Tj ET")
+            stream_lines.append("BT")
+        stream_lines.append("ET")
+        stream = "\n".join(stream_lines)
+
+        obj_num += 1
+        objs[obj_num] = f"{obj_num} 0 obj\n<< /Length {len(stream)} >>\nstream\n{stream}\nendstream\nendobj\n"
+
+    kids_str = " ".join(page_refs)
+    objs[2] = f"2 0 obj\n<< /Type /Pages /Kids [{kids_str}] /Count {len(pages)} >>\nendobj\n"
+
+    obj_num += 1
+    objs[obj_num] = f"{obj_num} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n"
+    font1_obj = obj_num
+    obj_num += 1
+    objs[obj_num] = f"{obj_num} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n"
+    font2_obj = obj_num
+
+    header = b"%PDF-1.4\n"
+    offsets = []
+    for i in range(1, obj_num + 1):
+        if i in objs:
+            offsets.append((i, len(header)))
+            header += objs[i].encode("latin-1", errors="replace")
+
+    xref_pos = len(header)
+    xref = f"xref\n0 {obj_num + 1}\n"
+    xref += "0000000000 65535 f \n"
+    for i in range(1, obj_num + 1):
+        off = next((o for num, o in offsets if num == i), 0)
+        xref += f"{off:010d} 00000 n \n"
+    header += xref.encode("latin-1")
+
+    trailer = f"trailer\n<< /Size {obj_num + 1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n"
+    header += trailer.encode("latin-1")
+
+    return header
+
 FORMATS = {
     "html": {"ext": ".html", "gen": generate_html, "desc": "HTML Report"},
     "json": {"ext": ".json", "gen": generate_json, "desc": "JSON Data"},
     "csv":  {"ext": ".csv",  "gen": generate_csv,  "desc": "CSV Spreadsheet"},
+    "pdf":  {"ext": ".pdf",  "gen": generate_pdf,  "desc": "PDF Report"},
     "ps1":  {"ext": ".ps1",  "gen": generate_ps1,  "desc": "PowerShell Remediation Script"},
 }
 
@@ -255,6 +377,10 @@ def save_report(checks, fmt="html", filepath=None):
     if filepath is None:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = os.path.join(REPORT_DIR, f"CISO_Audit_Report_{ts}{fmt_info['ext']}")
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(content)
+    if isinstance(content, bytes):
+        with open(filepath, "wb") as f:
+            f.write(content)
+    else:
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(content)
     return filepath
