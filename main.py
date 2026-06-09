@@ -1,8 +1,12 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import threading
+import json
+import os
 from auditor_core import AuditorCore
 from export_report import save_report, FORMATS
+
+SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
 
 BG = "#0D1117"
 BG2 = "#161B22"
@@ -47,6 +51,33 @@ class CISOAuditorApp:
 
         self._build_ui()
         self._bind_events()
+        self._load_settings()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _load_settings(self):
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                s = json.load(f)
+            self.export_format.set(s.get("format", "html"))
+            if "geometry" in s:
+                self.root.geometry(s["geometry"])
+        except:
+            pass
+
+    def _save_settings(self):
+        try:
+            s = {
+                "format": self.export_format.get(),
+                "geometry": self.root.geometry(),
+            }
+            with open(SETTINGS_FILE, "w") as f:
+                json.dump(s, f, indent=2)
+        except:
+            pass
+
+    def _on_close(self):
+        self._save_settings()
+        self.root.destroy()
 
     def _build_ui(self):
         self.root.columnconfigure(0, weight=1)
@@ -75,6 +106,23 @@ class CISOAuditorApp:
                                  activebackground="#4B91E0", activeforeground="#FFF",
                                  borderwidth=0)
         self.run_btn.grid(row=0, column=0, padx=(0, 8), sticky="w")
+
+        # --- Search bar ---
+        search_frame = tk.Frame(toolbar, bg=BG3, highlightthickness=1, highlightbackground=BORDER)
+        search_frame.grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        search_frame.columnconfigure(1, weight=1)
+
+        tk.Label(search_frame, text="🔍", bg=BG3, fg=FG2, font=FONT).grid(row=0, column=0, padx=(8, 0))
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add("write", lambda *_: self._filter_tree())
+        self.search_entry = tk.Entry(search_frame, textvariable=self.search_var,
+                                     bg=BG3, fg=FG, insertbackground=FG, font=FONT,
+                                     highlightthickness=0, bd=0)
+        self.search_entry.grid(row=0, column=1, sticky="ew", padx=(4, 4), pady=4)
+        self.search_clear = tk.Button(search_frame, text="✕", bg=BG3, fg=FG2, font=FONT,
+                                      command=lambda: self.search_var.set(""),
+                                      relief=tk.FLAT, cursor="hand2", width=2, bd=0)
+        self.search_clear.grid(row=0, column=2, padx=(0, 6))
 
         # Right-side toolbar cluster
         right_frame = tk.Frame(toolbar, bg=BG)
@@ -286,6 +334,14 @@ class CISOAuditorApp:
                                  borderwidth=0, state=tk.DISABLED)
         self.fix_btn.pack(side=tk.LEFT)
 
+        self.undo_single_btn = tk.Button(fix_row, text="UNDO FIX", bg=BG3, fg=RED,
+                                         font=FONT_BOLD, command=self._undo_from_detail,
+                                         relief=tk.FLAT, padx=14, pady=4, cursor="hand2",
+                                         activebackground=BORDER, activeforeground=RED,
+                                         borderwidth=1, highlightbackground=BORDER,
+                                         state=tk.DISABLED)
+        self.undo_single_btn.pack(side=tk.LEFT, padx=(8, 0))
+
         self.fix_result_lbl = tk.Label(fix_row, text="", bg=BG3, font=FONT)
         self.fix_result_lbl.pack(side=tk.LEFT, padx=(12, 0))
 
@@ -299,6 +355,88 @@ class CISOAuditorApp:
 
     def _bind_events(self):
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
+        self.tree.bind("<Button-3>", self._on_right_click)
+        self.tree.bind("<KP_Enter>", lambda e: self.apply_fix())
+        self.tree.bind("<Return>", lambda e: self.apply_fix())
+
+    def _filter_tree(self, *_):
+        q = self.search_var.get().lower()
+        for item in self.tree.get_children():
+            vals = [str(v).lower() for v in self.tree.item(item, "values")]
+            match = not q or any(q in v for v in vals)
+            if match:
+                self.tree.reattach(item, "", "end")
+            else:
+                self.tree.detach(item)
+        shown = len(self.tree.get_children())
+        self.row_count_lbl.config(text=f"{shown} items")
+
+    def _on_right_click(self, event):
+        sel = self.tree.identify_row(event.y)
+        if not sel:
+            return
+        self.tree.selection_set(sel)
+        cid = int(sel)
+        check = next((c for c in self.auditor.checks if c.id == cid), None)
+        if not check:
+            return
+        menu = tk.Menu(self.root, tearoff=0, bg=BG2, fg=FG, activebackground=SELECT_BG,
+                       activeforeground=FG, font=FONT, relief=tk.FLAT, bd=1)
+        menu.add_command(label="View Details", command=lambda: self._on_select(None))
+        if check.auto_fixable and check.status in ("FAIL", "WARNING"):
+            menu.add_separator()
+            menu.add_command(label="Apply Auto-Fix", command=self.apply_fix)
+        if check.id in [cid for cid, _ in self.auditor.fix_history]:
+            menu.add_separator()
+            menu.add_command(label="Undo This Fix", command=lambda: self._undo_single(check.id))
+        menu.add_separator()
+        menu.add_command(label="Copy Check ID", command=lambda: self._copy_text(f"#{check.id:03d}"))
+        menu.add_command(label="Copy Details", command=lambda: self._copy_text(check.details))
+        menu.post(event.x_root, event.y_root)
+
+    def _copy_text(self, text):
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+
+    def _undo_single(self, check_id):
+        if not self.auditor.is_admin():
+            messagebox.showwarning("Admin Required",
+                "Run the application as Administrator to undo fixes.")
+            return
+        check = next((c for c in self.auditor.checks if c.id == check_id), None)
+        if not check:
+            return
+        ok = messagebox.askyesno(
+            "Undo Single Fix",
+            f"Revert fix for #{check_id:03d}?\n\n{check.name}\n\n"
+            "Registry key will be restored to its original value.")
+        if not ok:
+            return
+
+        def do_undo():
+            result = self.auditor.undo_fix(check_id)
+            self.root.after(0, lambda: self._single_undo_complete(check_id, result))
+
+        t = threading.Thread(target=do_undo, daemon=True)
+        t.start()
+
+    def _single_undo_complete(self, check_id, result):
+        check = next((c for c in self.auditor.checks if c.id == check_id), None)
+        if check:
+            self.tree.set(check.id, "Status", check.status)
+            self.tree.set(check.id, "Details", check.details)
+            alt = (check.id % 2 == 0)
+            self.tree.item(check.id, tags=(check.status, "alt") if alt else (check.status,))
+        self._update_summary()
+        if self.selected_check and self.selected_check.id == check_id:
+            self._show_detail(self.selected_check)
+        self.status_lbl.config(text=result)
+        if not self.auditor.fix_history:
+            self.undo_btn.config(state=tk.DISABLED)
+
+    def _undo_from_detail(self):
+        if self.selected_check:
+            self._undo_single(self.selected_check.id)
 
     def _resize_all(self):
         self._on_tree_configure(None)
@@ -349,6 +487,8 @@ class CISOAuditorApp:
         else:
             self.fix_btn.config(state=tk.DISABLED, text="MANUAL ONLY", bg=GRAY,
                                 activebackground=GRAY)
+        has_been_fixed = check.id in [cid for cid, _ in self.auditor.fix_history]
+        self.undo_single_btn.config(state=tk.NORMAL if has_been_fixed else tk.DISABLED)
         self.fix_result_lbl.config(text="")
 
     def _hide_detail(self):
