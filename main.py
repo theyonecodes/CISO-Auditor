@@ -3,11 +3,17 @@ from tkinter import ttk, messagebox, filedialog
 import threading
 import json
 import os
+import sys
 from datetime import datetime
 from auditor_core import AuditorCore
 from export_report import save_report, FORMATS
 
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+def _get_app_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+SETTINGS_FILE = os.path.join(_get_app_dir(), "settings.json")
 
 BG = "#0D1117"
 BG2 = "#161B22"
