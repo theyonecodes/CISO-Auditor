@@ -5,6 +5,28 @@ import json
 import os
 import sys
 from datetime import datetime
+
+# Toolkit integration
+TOOLKIT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor", "toolkit")
+HAS_TOOLKIT = False
+try:
+    sys.path.insert(0, os.path.join(TOOLKIT_PATH, "gui", "dark-theme"))
+    sys.path.insert(0, os.path.join(TOOLKIT_PATH, "audit-engine"))
+    sys.path.insert(0, os.path.join(TOOLKIT_PATH, "fix-engine"))
+    sys.path.insert(0, os.path.join(TOOLKIT_PATH, "jev-router"))
+    from dark_theme import (
+        apply_dark_theme, BG, BG2, BG3, FG, FG2, ACCENT, GREEN, RED, AMBER, GRAY,
+        BORDER, SCROLL, SCROLL_HOVER, SELECT_BG, SELECT_FG, ROW_ALT,
+        FONT, FONT_BOLD, FONT_TITLE, FONT_MONO, FONT_MONO_BOLD, FONT_BADGE,
+        STATUS_COLORS, configure_ttk_style
+    )
+    from audit_engine import AuditEngine, CheckDefinition, CheckResult
+    from fix_engine import FixEngine, FixAction, FixResult, CommonFixes
+    from jev_router import JevRouter
+    HAS_TOOLKIT = True
+except ImportError:
+    HAS_TOOLKIT = False
+
 from auditor_core import AuditorCore
 from export_report import save_report, FORMATS
 
@@ -15,51 +37,171 @@ def _get_app_dir():
 
 SETTINGS_FILE = os.path.join(_get_app_dir(), "settings.json")
 
-BG = "#0D1117"
-BG2 = "#161B22"
-BG3 = "#1C2128"
-FG = "#E6EDF3"
-FG2 = "#8B949E"
-ACCENT = "#58A6FF"
-GREEN = "#3FB950"
-RED = "#F85149"
-AMBER = "#D29922"
-GRAY = "#8B949E"
-BORDER = "#30363D"
-SCROLL = "#484F58"
-SCROLL_HOVER = "#58A6FF"
-SELECT_BG = "#1F3A5F"
-SELECT_FG = "#FFFFFF"
-ROW_ALT = "#11181C"
+# Color/Font constants (fallback if toolkit not available)
+if not HAS_TOOLKIT:
+    BG = "#0D1117"
+    BG2 = "#161B22"
+    BG3 = "#1C2128"
+    FG = "#E6EDF3"
+    FG2 = "#8B949E"
+    ACCENT = "#58A6FF"
+    GREEN = "#3FB950"
+    RED = "#F85149"
+    AMBER = "#D29922"
+    GRAY = "#8B949E"
+    BORDER = "#30363D"
+    SCROLL = "#484F58"
+    SCROLL_HOVER = "#58A6FF"
+    SELECT_BG = "#1F3A5F"
+    SELECT_FG = "#FFFFFF"
+    ROW_ALT = "#11181C"
 
-FONT = ("Segoe UI", 10)
-FONT_BOLD = ("Segoe UI", 10, "bold")
-FONT_TITLE = ("Segoe UI", 16, "bold")
-FONT_MONO = ("Consolas", 10)
-FONT_MONO_BOLD = ("Consolas", 10, "bold")
-FONT_BADGE = ("Segoe UI", 9, "bold")
+    FONT = ("Segoe UI", 10)
+    FONT_BOLD = ("Segoe UI", 10, "bold")
+    FONT_TITLE = ("Segoe UI", 16, "bold")
+    FONT_MONO = ("Consolas", 10)
+    FONT_MONO_BOLD = ("Consolas", 10, "bold")
+    FONT_BADGE = ("Segoe UI", 9, "bold")
 
-STATUS_COLORS = {"PASS": GREEN, "FAIL": RED, "WARNING": AMBER, "PENDING": GRAY}
-
-FORMAT_NAMES = list(FORMATS.keys())
+    STATUS_COLORS = {"PASS": GREEN, "FAIL": RED, "WARNING": AMBER, "PENDING": GRAY}
 
 class CISOAuditorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("CISO Security Auditor")
         self.root.minsize(1024, 700)
-        self.root.configure(bg=BG)
         self.root.state("zoomed")
 
-        self.auditor = AuditorCore()
+        # Use toolkit engines if available
+        if HAS_TOOLKIT:
+            self.audit_engine = AuditEngine("CISO Security Auditor")
+            self.fix_engine = FixEngine("CISO Security Auditor")
+            self.jev_router = JevRouter()
+            self.jev_router.setup_default_choices()
+            self.jev_router.setup_default_nouls()
+            # Migrate existing checks to toolkit audit engine
+            self._migrate_checks_to_toolkit()
+        else:
+            self.auditor = AuditorCore()
+        
         self.scan_complete = False
         self.selected_check = None
         self.export_format = tk.StringVar(value="html")
+        self.scan_history = []  # For trend tracking
+        self.scan_db_path = os.path.join(os.path.dirname(SETTINGS_FILE), "scan_history.db")
+        self._init_scan_db()
 
         self._build_ui()
         self._bind_events()
         self._load_settings()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _init_scan_db(self):
+        """Initialize SQLite database for scan history."""
+        import sqlite3
+        try:
+            conn = sqlite3.connect(self.scan_db_path)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS scans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    score REAL NOT NULL,
+                    passed INTEGER NOT NULL,
+                    failed INTEGER NOT NULL,
+                    warning INTEGER NOT NULL,
+                    pending INTEGER NOT NULL,
+                    checks_run INTEGER NOT NULL,
+                    details TEXT
+                )
+            """)
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass  # Non-fatal
+
+    def _save_scan_to_db(self, score_data):
+        """Save scan results to database."""
+        import sqlite3
+        try:
+            conn = sqlite3.connect(self.scan_db_path)
+            conn.execute("""
+                INSERT INTO scans (timestamp, score, passed, failed, warning, pending, checks_run, details)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                datetime.now().isoformat(),
+                score_data.get("score", 0),
+                score_data.get("passed", 0),
+                score_data.get("failed", 0),
+                score_data.get("warning", 0),
+                score_data.get("pending", 0),
+                score_data.get("checks_run", 0),
+                json.dumps(score_data)
+            ))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass  # Non-fatal
+
+    def _load_scan_history(self, limit=50):
+        """Load scan history from database."""
+        import sqlite3
+        try:
+            conn = sqlite3.connect(self.scan_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute(
+                "SELECT * FROM scans ORDER BY timestamp DESC LIMIT ?", (limit,)
+            )
+            rows = cursor.fetchall()
+            conn.close()
+            return [dict(row) for row in rows]
+        except Exception:
+            return []
+
+    def _migrate_checks_to_toolkit(self):
+        """Migrate existing AuditorCore checks to toolkit AuditEngine."""
+        if not HAS_TOOLKIT:
+            return
+        
+        # The auditor_core checks are already in self.auditor.checks
+        # We'll register them with the toolkit AuditEngine
+        for check in self.auditor.checks:
+            # Create a handler that wraps the original check function
+            def make_handler(original_check):
+                def handler(check_def):
+                    # Find the original check in auditor_core
+                    orig = next((c for c in self.auditor.checks if c.id == check_def.id), None)
+                    if orig:
+                        self.auditor._execute_check(orig)
+                        return CheckResult(
+                            check_id=orig.id,
+                            status=orig.status,
+                            details=orig.details,
+                            score=100.0 if orig.status == "PASS" else (50.0 if orig.status == "WARNING" else 0.0)
+                        )
+                    return CheckResult(check_id=check_def.id, status="ERROR", details="Original check not found")
+                return handler
+            
+            # Create fix handler if auto-fixable
+            fix_handler = None
+            if check.auto_fixable:
+                def fix_handler(check_def):
+                    orig = next((c for c in self.auditor.checks if c.id == check_def.id), None)
+                    if orig:
+                        return self.auditor.fix_check(orig)
+                    return "No fix available"
+                fix_handler = fix_handler
+            
+            check_def = CheckDefinition(
+                id=check.id,
+                name=check.name,
+                category=check.category,
+                description=check.description,
+                remediation=check.remediation,
+                auto_fixable=check.auto_fixable,
+                weight=1.0,
+                severity="HIGH" if check.status == "FAIL" else "MEDIUM"
+            )
+            self.audit_engine.register_check(check_def, make_handler(check), fix_handler)
 
     def _load_settings(self):
         try:
@@ -84,6 +226,12 @@ class CISOAuditorApp:
         self.root.destroy()
 
     def _build_ui(self):
+        # Apply dark theme from toolkit
+        if HAS_TOOLKIT:
+            apply_dark_theme(self.root)
+        else:
+            self.root.configure(bg=BG)
+        
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(3, weight=1)
 
@@ -615,7 +763,7 @@ class CISOAuditorApp:
         self.selected_check = check
         self._show_detail(check)
 
-    def apply_fix(self):
+def apply_fix(self):
         if not self.selected_check or not self.selected_check.auto_fixable:
             return
         if not self.auditor.is_admin():
@@ -624,6 +772,11 @@ class CISOAuditorApp:
                 fg=RED)
             return
         check = self.selected_check
+        
+        # Jev Router triage for this specific fix
+        if HAS_TOOLKIT and hasattr(self, 'jev_router'):
+            self._run_jev_triage_for_fix(check)
+        
         ok = messagebox.askyesno(
             "Fix this?",
             f"Fix #{check.id:03d}?\n\n"
@@ -634,19 +787,72 @@ class CISOAuditorApp:
 
         def do_fix():
             try:
-                result = self.auditor.fix_check(self.selected_check)
-                self.root.after(0, lambda: self._fix_complete(result))
+                if HAS_TOOLKIT and hasattr(self, 'fix_engine'):
+                    # Use toolkit FixEngine
+                    action = FixAction(
+                        id=f"ciso_check_{check.id}",
+                        name=check.name,
+                        description=check.remediation,
+                        category=check.category,
+                        auto_fixable=True,
+                        requires_admin=True,
+                        requires_reboot=False
+                    )
+                    # Register the fix with the fix engine
+                    self.fix_engine.register_action(action, lambda a: self._execute_toolkit_fix(check))
+                    result = self.fix_engine.execute_action(f"ciso_check_{check.id}")
+                    result_str = f"{'Fixed' if result.success else 'Failed'}: {result.message}"
+                else:
+                    result_str = self.auditor.fix_check(self.selected_check)
+                self.root.after(0, lambda: self._fix_complete(result_str))
             except Exception as e:
-                try:
-                    self.root.after(0, lambda: self.fix_result_lbl.config(
-                        text=f"Oops: {str(e)}", fg=RED))
-                except:
-                    pass
+                self.root.after(0, lambda: self.fix_result_lbl.config(
+                    text=f"Oops: {str(e)}", fg=RED))
 
         self.fix_btn.config(state=tk.DISABLED, text="FIXING...", fg=AMBER)
         self.fix_result_lbl.config(text="Applying fix...", fg=AMBER)
         t = threading.Thread(target=do_fix, daemon=True)
         t.start()
+
+    def _execute_toolkit_fix(self, check):
+        """Execute fix using toolkit FixEngine."""
+        result = self.auditor.fix_check(check)
+        if result.startswith("Fixed"):
+            return FixResult(f"ciso_check_{check.id}", True, result, changes_made=[check.name])
+        return FixResult(f"ciso_check_{check.id}", False, result)
+
+    def _run_jev_triage_for_fix(self, check):
+        """Run Jev Router triage for a specific fix."""
+        if not HAS_TOOLKIT or not hasattr(self, 'jev_router'):
+            return
+        
+        def worker():
+            try:
+                context = {
+                    "task_type": "security_fix",
+                    "sensitive": True,
+                    "check_id": check.id,
+                    "check_name": check.name,
+                    "category": check.category,
+                    "severity": "HIGH" if check.status == "FAIL" else "MEDIUM",
+                    "required_capabilities": ["system_admin", "registry", "security_policy"]
+                }
+                decision = self.jev_router.route("system_optimization", context)
+                
+                msg = f"Jev Triage for #{check.id:03d} {check.name}:\n"
+                msg += f"Model: {decision.selected_option.name if decision.selected_option else 'N/A'}\n"
+                msg += f"Confidence: {decision.final_confidence*100:.0f}%\n"
+                msg += f"Reasoning: {decision.reasoning}\n"
+                if decision.requires_human:
+                    msg += "\n⚠ HUMAN REVIEW REQUIRED"
+                if decision.triggered_nouls:
+                    msg += f"\nGuardrails: {', '.join(n.id for n in decision.triggered_nouls)}"
+                
+                self.root.after(0, lambda: self.fix_result_lbl.config(text=f"Jev: {decision.final_confidence*100:.0f}% confidence"))
+            except Exception:
+                pass
+        
+        threading.Thread(target=worker, daemon=True).start()
 
     def _fix_complete(self, result):
         ok = result.startswith("Fixed")
@@ -783,7 +989,18 @@ class CISOAuditorApp:
 
     def _scan_process(self):
         try:
-            self.auditor.run_all_checks(progress_callback=self._update_progress)
+            if HAS_TOOLKIT and hasattr(self, 'audit_engine'):
+                # Use toolkit audit engine
+                self.audit_engine.run_all_checks(progress_callback=self._update_progress)
+                # Copy results back to auditor_core for UI compatibility
+                for check_id, result in self.audit_engine.results.items():
+                    check = next((c for c in self.auditor.checks if c.id == check_id), None)
+                    if check:
+                        check.status = result.status
+                        check.details = result.details
+            else:
+                # Fallback to original auditor_core
+                self.auditor.run_all_checks(progress_callback=self._update_progress)
         except Exception as e:
             self.root.after(0, lambda: self.status_lbl.config(
                 text=f"Scan error: {str(e)}"))
@@ -848,9 +1065,14 @@ class CISOAuditorApp:
 
         self._update_summary()
 
+        # Save to database
         scan = self.auditor.save_scan()
+        self._save_scan_to_db(scan)
         self._load_history_panel()
         self._update_trend()
+
+        # Jev Router triage for auto-fixable items
+        self._run_jev_triage_post_scan()
 
         fixable = sum(1 for c in self.auditor.checks
                       if c.status in ("FAIL", "WARNING") and c.auto_fixable)
@@ -858,6 +1080,45 @@ class CISOAuditorApp:
             self.status_lbl.config(text=f"Done. {fixable} things can be auto-fixed.")
         else:
             self.status_lbl.config(text="Done. Nothing to auto-fix. Your system looks good.")
+
+    def _run_jev_triage_post_scan(self):
+        """Run Jev Router triage for auto-fixable findings."""
+        if not HAS_TOOLKIT or not hasattr(self, 'jev_router'):
+            return
+        
+        fixable_checks = [c for c in self.auditor.checks 
+                         if c.status in ("FAIL", "WARNING") and c.auto_fixable]
+        if not fixable_checks:
+            return
+        
+        def worker():
+            try:
+                context = {
+                    "task_type": "security_fix_triage",
+                    "sensitive": True,
+                    "findings": [
+                        {"id": c.id, "name": c.name, "category": c.category, "severity": "HIGH" if c.status == "FAIL" else "MEDIUM"}
+                        for c in fixable_checks
+                    ],
+                    "required_capabilities": ["system_admin", "registry", "security_policy"]
+                }
+                decision = self.jev_router.route("system_optimization", context)
+                
+                msg = f"Jev Triage: {len(fixable_checks)} auto-fixable findings\n"
+                msg += f"Model: {decision.selected_option.name if decision.selected_option else 'N/A'}\n"
+                msg += f"Confidence: {decision.final_confidence*100:.0f}%\n"
+                msg += f"Reasoning: {decision.reasoning}\n"
+                if decision.requires_human:
+                    msg += "\n⚠ HUMAN REVIEW REQUIRED"
+                if decision.triggered_nouls:
+                    msg += f"\nGuardrails: {', '.join(n.id for n in decision.triggered_nouls)}"
+                
+                self.root.after(0, lambda: self.status_lbl.config(text=f"Jev: {decision.final_confidence*100:.0f}% confidence"))
+                # Could show a dialog or update UI
+            except Exception:
+                pass
+        
+        threading.Thread(target=worker, daemon=True).start()
 
     def export_report(self):
         if not self.scan_complete:
