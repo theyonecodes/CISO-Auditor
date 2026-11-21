@@ -1,0 +1,125 @@
+{
+  "manifest_version": "2.0",
+  "checks": [
+    {
+      "id": 1,
+      "name": "UEFI Secure Boot",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Is Secure Boot enabled and strictly enforcing signed bootloaders?",
+      "plugin": "checks.category1.check_01_secure_boot.SecureBootCheck",
+      "severity": "Critical",
+      "remediation": "Enter BIOS/UEFI -> Boot -> Secure Boot -> Enabled. Reinstall OS if switching from Legacy.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1542.003"],
+      "references": ["https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/oem-secure-boot"]
+    },
+    {
+      "id": 2,
+      "name": "TPM 2.0 Status",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Is the Trusted Platform Module active, provisioned, and owning platform keys?",
+      "plugin": "checks.category1.check_02_tpm.TPMCheck",
+      "severity": "Critical",
+      "remediation": "Enter BIOS/UEFI -> Security -> TPM -> Enable & Activate. Run 'Initialize-Tpm' in PowerShell.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1542.002"],
+      "references": ["https://learn.microsoft.com/en-us/windows/security/information-protection/tpm/trusted-platform-module-top-node"]
+    },
+    {
+      "id": 3,
+      "name": "Core Isolation / VBS",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Is Virtualization-Based Security running to protect memory?",
+      "plugin": "checks.category1.check_03_vbs.VBSCheck",
+      "severity": "Critical",
+      "remediation": "Enable in BIOS: Intel VT-x/AMD-V. Then: Windows Security -> Device Security -> Core Isolation -> On.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1055"],
+      "references": ["https://learn.microsoft.com/en-us/windows/security/threat-protection/device-guard/intro-to-virtualization-based-security"]
+    },
+    {
+      "id": 4,
+      "name": "DMA Protection",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Is Kernel DMA Protection enabled against malicious Thunderbolt/USB/PCIe devices?",
+      "plugin": "checks.category1.check_04_dma.DMProtectionCheck",
+      "severity": "High",
+      "remediation": "Enable via Group Policy: Computer Config -> Admin Templates -> System -> Kernel DMA Protection -> Enabled.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1005"],
+      "references": ["https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/oem-dma-protection"]
+    },
+    {
+      "id": 5,
+      "name": "Firmware Updates",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Are BIOS/UEFI versions patched against known Intel ME / AMD PSP vulnerabilities?",
+      "plugin": "checks.category1.check_05_firmware.FirmwareCheck",
+      "severity": "High",
+      "remediation": "Check motherboard manufacturer support site for BIOS updates. Apply latest firmware patch.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1542.001"],
+      "references": ["https://www.intel.com/content/www/us/en/security-center/default.html"]
+    },
+    {
+      "id": 6,
+      "name": "BitLocker / Device Encryption",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Is the OS drive encrypted with XTS-AES 256?",
+      "plugin": "checks.category1.check_06_bitlocker.BitLockerCheck",
+      "severity": "Critical",
+      "remediation": "Run: 'manage-bde -on C:' as Admin. Or: Control Panel -> BitLocker Drive Encryption -> Turn On.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1560"],
+      "references": ["https://learn.microsoft.com/en-us/windows/security/information-protection/bitlocker/bitlocker-overview"]
+    },
+    {
+      "id": 7,
+      "name": "Boot Configuration Data (BCD)",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Is testsigning and debug mode strictly disabled?",
+      "plugin": "checks.category1.check_07_bcd.BCDCheck",
+      "severity": "High",
+      "remediation": "Run: 'bcdedit /set testsigning off' and 'bcdedit /set debug off' as Admin.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1542.004"],
+      "references": ["https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/bcdedit--set"]
+    },
+    {
+      "id": 8,
+      "name": "Early Launch Anti-Malware (ELAM)",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Are ELAM drivers verified before standard boot drivers?",
+      "plugin": "checks.category1.check_08_elam.ELAMCheck",
+      "severity": "Medium",
+      "remediation": "ELAM is driver-loaded; ensure Secure Boot is enabled. No user toggle needed on modern Windows.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1542"],
+      "references": ["https://learn.microsoft.com/en-us/windows-hardware/drivers/install/early-launch-antimalware"]
+    },
+    {
+      "id": 9,
+      "name": "SMM (System Management Mode)",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Are SMM protections active against firmware rootkits?",
+      "plugin": "checks.category1.check_09_smm.SMMCheck",
+      "severity": "High",
+      "remediation": "SMM protection is firmware-level. Ensure BIOS is updated to latest version from manufacturer.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1542.001"],
+      "references": ["https://uefi.org/specs/ACPI/6.5/"]
+    },
+    {
+      "id": 10,
+      "name": "Hardware Virtualization",
+      "category": "Boot, Firmware & Hardware",
+      "description": "Is VT-x/AMD-V enabled for hardware-backed sandboxing?",
+      "plugin": "checks.category1.check_10_hv.HVCheck",
+      "severity": "High",
+      "remediation": "Enter BIOS/UEFI -> CPU Configuration -> Intel VT-x/AMD SVM -> Enabled. Reboot.",
+      "auto_fixable": false,
+      "mitre_techniques": ["T1055"],
+      "references": ["https://learn.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/hyper-v-requirements"]
+    }
+  ]
+}

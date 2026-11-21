@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CISO-Auditor Check Rule Manifest",
+  "version": "2.0",
+  "description": "Defines security check rules for the CISO-Auditor plugin system",
+  "type": "object",
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "enum": ["2.0"]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "category", "description", "plugin"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Boot, Firmware & Hardware",
+              "OS-Level Exploit Mitigations",
+              "Deep Persistence Mechanisms",
+              "Identity & Access Management",
+              "Network, Firewall & Traffic",
+              "Process Execution & App Whitelisting",
+              "File System & Data Security",
+              "Auditing, Logging & Telemetry"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10
+          },
+          "plugin": {
+            "type": "string",
+            "description": "Python module path to the check plugin class"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["Critical", "High", "Medium", "Low"],
+            "default": "Medium"
+          },
+          "remediation": {
+            "type": "string",
+            "default": ""
+          },
+          "auto_fixable": {
+            "type": "boolean",
+            "default": false
+          },
+          "mitre_techniques": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^T\\d{4}(\\.\\d{3})?$"
+            },
+            "default": []
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "default": []
+          },
+          "config": {
+            "type": "object",
+            "description": "Plugin-specific configuration",
+            "default": {}
+          }
+        }
+      }
+    }
+  },
+  "required": ["manifest_version", "checks"]
+}
